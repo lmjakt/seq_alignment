@@ -14,4 +14,9 @@ void smith_waterman_id(const char *seq_1, const char *seq_2, size_t l1, size_t l
 		       int match, int mis_match, int gap,
 		       int *pointers, int *scores);
 
+void smith_waterman_cm(const char *seq_1, const char *seq_2, size_t l1, size_t l2,
+		       int match, int mis_match, int gap,
+		       int *scores, int *col_maxes);
+
+
 #endif

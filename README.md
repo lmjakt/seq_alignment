@@ -9,6 +9,10 @@ parameters for tasks such as internal primer discovery.
 ### Compilation
 ```sh
 R CMD SHLIB seq_alignment.c smith_waterman.c
+
+## or for more speed:
+MAKEFLAGS="CFLAGS=-O3" R CMD SHLIB seq_alignment.c smith_waterman.c
+
 ```
 
 ### Library load

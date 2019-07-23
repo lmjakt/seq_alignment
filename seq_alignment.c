@@ -2,6 +2,8 @@
 #include <Rinternals.h>
 #include "smith_waterman.h"
 
+
+
 // Creates smith waterman score and pointer matrices
 // for two sequences. Does not extract an alignment.
 
@@ -36,6 +38,56 @@ SEXP smith_water_matrices(SEXP seqs_r, SEXP penalties_r){
   smith_waterman_id(seq1, seq2, l1, l2,
 		    penalties[0], penalties[1], penalties[2],
 		    pointers, scores);
+  UNPROTECT(1);
+  return(ret_data);
+}
+
+// A function that returns the column maxima for two sets of sequences
+// Returns a matrix of column maximums for each sequence...
+
+SEXP smith_water_col_max(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r){
+  if( TYPEOF(seq_short_r) != STRSXP || TYPEOF(seq_long_r) != STRSXP )
+    error("The first two arguments should both be character vectors");
+  if( TYPEOF(penalties_r) != INTSXP )
+    error("second argument should be an integer vector");
+  if( length(seq_short_r) < 1 || length(seq_long_r) < 1 || length(penalties_r) != 3)
+    error("Arguments should have lengths: l1 > 0, l2 > 0, l3 == 3");
+  
+  int *penalties = INTEGER(penalties_r);
+  int n_short = length(seq_short_r);
+  int n_long = length(seq_long_r);
+
+  // for each long sequence we wish to determine column maxes. That means
+  // we need to return a list of n_long items, containing matrices with
+  // n_short columns and nrow equal to the long sequence... 
+  SEXP ret_data = PROTECT(allocVector(VECSXP, n_long));
+  
+  // we define a single matrix that we will try to reuse
+  // This will take up about 2.4MB of memory and should be sufficient
+  int *score_buffer = malloc(sizeof(int) * 30 * 10000);
+
+  // Then iterate through the long sequences:
+  for(int i=0; i < n_long; ++i){
+    SEXP seq_l_r = STRING_ELT(seq_long_r, i);
+    int seq_length = length(seq_l_r);
+    const char *seq_l = CHAR(seq_l_r);
+    if(seq_length < 1)
+      continue;
+    SET_VECTOR_ELT(ret_data, i, allocMatrix(INTSXP, seq_length + 1, n_short));
+    int *c_max = INTEGER(VECTOR_ELT(ret_data, i));
+    for(int j=0; j < n_short; ++j){
+      SEXP seq_s_r = STRING_ELT(seq_short_r, j);
+      int primer_length = length(seq_s_r);
+      const char *seq_s = CHAR(seq_s_r);
+      // call realloc to make sure that we have sufficient memory for the
+      // buffer
+      score_buffer = realloc((void*)score_buffer, sizeof(int) * (1 + seq_length) * (1 + primer_length));
+      smith_waterman_cm(seq_s, seq_l, primer_length, seq_length,
+			penalties[0], penalties[1], penalties[2],
+			score_buffer, c_max + (seq_length + 1) * j);
+    }
+  }
+  free( score_buffer );
   UNPROTECT(1);
   return(ret_data);
 }
