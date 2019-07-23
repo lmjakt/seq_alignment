@@ -72,3 +72,13 @@ Not particularly optimised. Takes on average about 1 millisecond to determine
 the matrices for a pair of 30 vs 1500 bp sequences (rough estimates of
 sequence length; I didn't check). Note that this includes the R overhead of
 calling the alignment function many times.
+
+Using the `smith_water_col_max` function which only returns a matrix of column
+max scores for each primer-set sequence pairing and compiling with -O3 (see
+above) this is now improved to 0.2 ms per sequence pair. Typically one will have
+4 different primer sequences to search for (depending on orientation). Hence
+this means that it takes less than a millisecond to return the max_column scores.
+This extrapolates to a 1000 seconds for a million sequences, or approximately
+16 minutes. If the built in functions `SET_VECTOR_ELT` and `allocMatrix` are
+re-entrant, then it would be simple to use open_mp to parallelise this to
+allow screening reasonably large collections of sequences.
