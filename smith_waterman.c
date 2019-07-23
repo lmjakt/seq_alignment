@@ -70,7 +70,7 @@ void smith_waterman_cm(const char *seq_1, const char *seq_2, size_t l1, size_t l
   register int score = 0;
   register int column_max = 0;
   for(size_t column=1; column < ncol; ++column){
-    col_maxes[column] = 0;
+    column_max = 0;
     for(size_t row=1; row < nrow; ++row){
       offset = row + nrow * column;
       scores[offset] = 0;
