@@ -91,3 +91,49 @@ SEXP smith_water_col_max(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r){
   UNPROTECT(1);
   return(ret_data);
 }
+
+// A function to return some peaks. This is simple enough.
+// only handles integers
+// do two passes to avoid having to do funky memory arrangements
+// This would be better with std::vector<> and push_back()
+SEXP get_peaks(SEXP v_r, SEXP min_v_r, SEXP min_dist_r){
+  if(TYPEOF(v_r) != INTSXP || TYPEOF(min_v_r) != INTSXP || TYPEOF(min_dist_r) != INTSXP)
+    error("Bad argument types");
+  if(length(v_r) < 2 || length(min_v_r) != 1 || length(min_dist_r) != 1)
+    error("Bad argument lengths");
+  int n = length(v_r);
+  int *v = INTEGER(v_r);
+  int min_v = *INTEGER(min_v_r);
+  int min_dist = *INTEGER(min_dist_r);
+  
+  unsigned char *peaks = malloc(sizeof(char) * n);
+  size_t peak_n = 0;
+  memset((void*)peaks, 0, sizeof(char) * n);
+  int last_peak = -1;
+  for(int i=1; i < n; ++i){
+    if(v[i] > min_v && v[i] > v[i-1] && (i == n-1 || v[i] > v[i+1])){
+      if(last_peak < 0 || i - last_peak > min_dist){
+	peaks[i] = 1;
+	peak_n++;
+	last_peak = i;
+      }else{
+	if(v[i] > v[last_peak]){
+	  peaks[last_peak] = 0;
+	  peaks[i] = 1;
+	  last_peak = i;
+	}
+      }
+    }
+  }
+  SEXP peak_pos_r = PROTECT(allocVector(INTSXP, peak_n));
+  int *peak_pos = INTEGER(peak_pos_r);
+  int peak_i = 0;
+  for(int i=0; i < n && peak_i < peak_n; ++i){
+    if(peaks[i]){
+      peak_pos[peak_i] = i+1;
+      ++peak_i;
+    }
+  }
+  UNPROTECT(1);
+  return( peak_pos_r );
+}
