@@ -1,0 +1,3 @@
+PKG_CPPFLAGS = -pthread
+PKG_LIBS = -pthread
+PKG_CFLAGS = -O3
