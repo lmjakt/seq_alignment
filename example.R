@@ -3,7 +3,7 @@
 ## statistics. These can then be passed down
 ## to other languages...
 
-source("~/R/general_functions.R")
+source("~/R/experimental_R/general_functions.R")
 
 p.ff <- "TGGATTGATATGTAATACGACTCACTATAG"
 p.fr <- "TCTCAGGCGTTTTTTTTTTTTTTTTTT"
@@ -88,7 +88,8 @@ system.time( tmp2 <- .Call("smith_water_col_max", p.seqs, fastq.seq, as.integer(
 ## 0.212, 0.19, 0.217, 0.179, 0.214
 ## note that the speed is about three times faster with -O3, then with
 ## a default non-optimised compile.
-
+##
+## on my laptop I am getting 0.101 seconds... 
 
 get.peaks <- function(v, min.v=80L, min.sep=27L){
     .Call("get_peaks", v, min.v, min.sep)
@@ -135,5 +136,8 @@ tmp3 <- lapply(tmp2, function(x){
 ## I have also a multithreaded function.
 
 ## try with 2 threads first
-system.time( tmp4 <- .Call("smith_water_col_max_mt", p.seqs, fastq.seq, as.integer(c(4,4,5)), 2L))
+#system.time(
+
+tmp4 <- .Call("smith_water_col_max_mt", p.seqs, fastq.seq, as.integer(c(4,4,5)), 1L)
 ## segmentation error!
+
