@@ -110,10 +110,14 @@ struct col_max_thread_arg {
   int end;
 };
 
-void* smith_water_col_max_thread(void *args_ptr){
+void * smith_water_col_max_thread(void *args_ptr){
   struct col_max_thread_arg args = *(struct col_max_thread_arg*)args_ptr;
+  Rprintf("thread range: %d -> %d\n", args.start, args.end);
+  Rprintf("score_buffer %p\n", (void*)args.score_buffer);
+  Rprintf("penalties %p\n", (void*)args.penalties);
   int n_short = length( args.short_seqs );
   for(int i=args.start; i < args.end; ++i){
+    Rprintf("%d -> %d : %d\n", args.start, args.end, i);
     SEXP seq_l_r = STRING_ELT(args.long_seqs, i);
     int seq_l_l = length(seq_l_r);
     const char *seq_l = CHAR(seq_l_r);
@@ -126,6 +130,8 @@ void* smith_water_col_max_thread(void *args_ptr){
       const char *seq_s = CHAR(seq_s_r);
       args.score_buffer = realloc((void*)args.score_buffer,
 				  sizeof(int) * (1 + seq_l_l) * (1 + seq_s_l));
+      Rprintf("score_buffer: %p\n", (void*)args.score_buffer);
+      Rprintf("size: %d * %d * %d\n", sizeof(int), 1 + seq_l_l, 1 + seq_s_l);
       smith_waterman_cm(seq_s, seq_l, seq_s_l, seq_l_l,
 			args.penalties[0], args.penalties[1], args.penalties[2],
 			args.score_buffer, c_max + (seq_l_l + 1) * j);
@@ -171,6 +177,7 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
       continue;
     SET_VECTOR_ELT(ret_data, i, allocMatrix(INTSXP, seq_length + 1, n_short));
   }
+  Rprintf("allocated ret_data\n");
 
   // we will define a separate score buffer for each worker thread
   // This will take up about 2.4MB of memory and should be sufficient
@@ -188,21 +195,26 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
     thread_arg[i].start = i * n_long / thread_n;
     thread_arg[i].end = (i == thread_n - 1) ? n_long : (i + 1) * n_long / thread_n;
     // and then we create the thread and start it..
+    Rprintf("Starting thread %d: %d -> %d\n", i, thread_arg[i].start, thread_arg[i].end);
     threads[i] = pthread_create(&threads[i], NULL,
 				smith_water_col_max_thread,
 				(void *)&(thread_arg[i]) );
+    Rprintf("thread started and running\n");
   }
   // wait for the threads to finish using join
   // we do not consider any errors here. Probably we cannot use
   // error() in the worker thread, so we have to be careful..
   void *status;
+  Rprintf("before loop to join\n");
   for(int i=0; i < thread_n; ++i){
+    Rprintf("waiting for thread %d\n", i);
     pthread_join(threads[i], &status );
-    free(score_buffers[i]);
+    //    free(score_buffers[i]);
   }
   free(score_buffers);
   free(thread_arg);
   free(threads);
+  Rprintf("freed memory\n");
 
   UNPROTECT(1);
   return( ret_data );
