@@ -1,6 +1,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <pthread.h>
+#include <stdio.h>
 #include "smith_waterman.h"
 
 static const int sw_matrix_size = 30 * 10000;
@@ -117,32 +118,25 @@ struct col_max_thread_arg {
 };
 
 void * smith_water_col_max_thread(void *args_ptr){
-  struct col_max_thread_arg args = *(struct col_max_thread_arg*)args_ptr;
-  /* Rprintf("thread range: %d -> %d\n", args.start, args.end); */
-  /* Rprintf("score_buffer %p\n", (void*)args.score_buffer); */
-  /* Rprintf("penalties %p\n", (void*)args.penalties); */
-  int n_short = args.n_short; //length( args.short_seqs );
-  for(int i=args.start; i < args.end; ++i){
-    //    Rprintf("%d -> %d : %d\n", args.start, args.end, i);
-    //    SEXP seq_l_r = STRING_ELT(args.long_seqs, i);
-    int seq_l_l = args.long_n[i]; // length(seq_l_r);
-    const char *seq_l = args.long_seqs[i]; // CHAR(seq_l_r);
+  struct col_max_thread_arg *args = (struct col_max_thread_arg*)args_ptr;
+  int n_short = args->n_short; 
+  for(int i=args->start; i < args->end; ++i){
+    int seq_l_l = args->long_n[i]; 
+    const char *seq_l = args->long_seqs[i]; 
     if(seq_l_l < 1)
       continue;
-    int *c_max = args.ret_data[i]; // INTEGER(VECTOR_ELT(args.ret_data, i));
+    int *c_max = args->ret_data[i]; 
     for(int j=0; j < n_short; ++j){
-      //      SEXP seq_s_r = STRING_ELT(args.short_seqs, j);
-      int seq_s_l = args.short_n[j]; // length(seq_s_r);
-      const char *seq_s = args.short_seqs[j]; //CHAR(seq_s_r);
-      args.score_buffer = realloc((void*)args.score_buffer,
+      int seq_s_l = args->short_n[j]; 
+      const char *seq_s = args->short_seqs[j]; 
+      args->score_buffer = realloc((void*)args->score_buffer,
 				  sizeof(int) * (1 + seq_l_l) * (1 + seq_s_l));
-      /* Rprintf("score_buffer: %p\n", (void*)args.score_buffer); */
-      /* Rprintf("size: %d * %d * %d\n", sizeof(int), 1 + seq_l_l, 1 + seq_s_l); */
       smith_waterman_cm(seq_s, seq_l, seq_s_l, seq_l_l,
-			args.penalties[0], args.penalties[1], args.penalties[2],
-			args.score_buffer, c_max + (seq_l_l + 1) * j);
+			args->penalties[0], args->penalties[1], args->penalties[2],
+			args->score_buffer, c_max + (seq_l_l + 1) * j);
     }
   }
+  free(args->score_buffer);
   pthread_exit((void*)args_ptr);
 }
   
@@ -165,13 +159,13 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
     error("bad thread number %d", thread_n);
 
   // Let us look at the stack size
-  pthread_attr_t thread_attribute;
-  size_t stack_size;
-  pthread_attr_init(&thread_attribute);
-  pthread_attr_getstacksize(&thread_attribute, &stack_size);
-  Rprintf("The default stack size is %d\n", stack_size);
-  Rprintf("Will double it to: %d\n", stack_size * 2);
-  pthread_attr_setstacksize(&thread_attribute, stack_size * 2);
+  /* pthread_attr_t thread_attribute; */
+  /* size_t stack_size; */
+  /* pthread_attr_init(&thread_attribute); */
+  /* pthread_attr_getstacksize(&thread_attribute, &stack_size); */
+  /* Rprintf("The default stack size is %d\n", stack_size); */
+  /* Rprintf("Will double it to: %d\n", stack_size * 2); */
+  /* pthread_attr_setstacksize(&thread_attribute, stack_size * 2); */
   
   // Since we do not wish to allocate mamory within the worker threads we will
   // first go through all of the sequences and allocate memory for te
@@ -205,11 +199,10 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
     if(seq_length < 1)
       continue;
     SET_VECTOR_ELT(ret_data, i, allocMatrix(INTSXP, seq_length + 1, n_short));
-    long_seqs[i] = CHAR(seq_l_r);
     long_n[i] = seq_length;
+    long_seqs[i] = CHAR(seq_l_r);
     ret_data_p[i] = INTEGER(VECTOR_ELT(ret_data, i));
   }
-  Rprintf("allocated ret_data\n");
 
   // we will define a separate score buffer for each worker thread
   // This will take up about 2.4MB of memory and should be sufficient
@@ -231,23 +224,17 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
     thread_arg[i].start = i * n_long / thread_n;
     thread_arg[i].end = (i == thread_n - 1) ? n_long : (i + 1) * n_long / thread_n;
     // and then we create the thread and start it..
-    Rprintf("Starting thread %d: %d -> %d\n", i, thread_arg[i].start, thread_arg[i].end);
     pthread_create(&threads[i], NULL,
-		   smith_water_col_max_thread,
-		   (void *)&(thread_arg[i]) );
+    		   smith_water_col_max_thread,
+    		   (void *)&(thread_arg[i]) );
     //    smith_water_col_max_thread( (void*)&thread_arg[i] );
-    Rprintf("thread started and running\n");
   }
   // wait for the threads to finish using join
   // we do not consider any errors here. Probably we cannot use
   // error() in the worker thread, so we have to be careful..
   void *status;
-  Rprintf("before loop to join\n");
   for(int i=0; i < thread_n; ++i){
-    Rprintf("waiting for thread %d\n", i);
-    //pthread_join(threads[i], NULL );
     pthread_join(threads[i], &status );
-    free(score_buffers[i]);
   }
   free(score_buffers);
   free(thread_arg);
@@ -257,7 +244,6 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
   free(long_n);
   free(short_n);
   free(ret_data_p);
-  Rprintf("freed memory\n");
 
   UNPROTECT(1);
   return( ret_data );

@@ -137,7 +137,27 @@ tmp3 <- lapply(tmp2, function(x){
 
 ## try with 2 threads first
 #system.time(
+system.time(
+    for(i in 1:100){
+    tmp4 <- .Call("smith_water_col_max_mt", p.seqs, fastq.seq, as.integer(c(4,4,5)), 1L)
+})
 
-tmp4 <- .Call("smith_water_col_max_mt", p.seqs, fastq.seq, as.integer(c(4,4,5)), 1L)
-## segmentation error!
+## this now seems to work, but gives no apparent speedup whatsoever. That is a bit strange
+## as we have no mutexes, or anything. This suggests that the setting up of the
+## threads is not worth it here.. But.. still, should not take that much time
+## In fact we get the fastest speed for 1 thread...
+## I need to study this further.
+
+par(mfrow=c(2,1))
+for(i in 1:length(fastq.seq)){
+    plot( 1:nrow(tmp2[[i]]), tmp2[[i]][,1], ylim=range(tmp2[[i]]), xaxs='i', type='l')
+    lines( 1:nrow(tmp2[[i]]), tmp2[[i]][,2], col=2);
+    lines( 1:nrow(tmp2[[i]]), tmp2[[i]][,3], col=3);
+    lines( 1:nrow(tmp2[[i]]), tmp2[[i]][,4], col=4);
+    plot( 1:nrow(tmp4[[i]]), tmp4[[i]][,1], ylim=range(tmp4[[i]]), xaxs='i', type='l')
+    lines( 1:nrow(tmp4[[i]]), tmp4[[i]][,2], col=2);
+    lines( 1:nrow(tmp4[[i]]), tmp4[[i]][,3], col=3);
+    lines( 1:nrow(tmp4[[i]]), tmp4[[i]][,4], col=4);
+    inpt <- readline("next: ")
+}
 
