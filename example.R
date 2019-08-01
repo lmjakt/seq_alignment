@@ -135,19 +135,38 @@ tmp3 <- lapply(tmp2, function(x){
 
 ## I have also a multithreaded function.
 
-## try with 2 threads first
-#system.time(
-system.time(
-    for(i in 1:100){
-    tmp4 <- .Call("smith_water_col_max_mt", p.seqs, fastq.seq, as.integer(c(4,4,5)), 1L)
-})
-
 ## this now seems to work, but gives no apparent speedup whatsoever. That is a bit strange
 ## as we have no mutexes, or anything. This suggests that the setting up of the
 ## threads is not worth it here.. But.. still, should not take that much time
 ## In fact we get the fastest speed for 1 thread...
 ## I need to study this further.
 
+fastq.seq2 <- c(fastq.seq, fastq.seq)
+for(i in 1:5){
+    fastq.seq2 <- c(fastq.seq2, fastq.seq2)
+}
+## that is now 16000 sequences
+
+mp.performance <- sapply(1:32, function(t){
+    system.time( tmp4 <- .Call("smith_water_col_max_mt", p.seqs, fastq.seq2, as.integer(c(4,4,5)), as.integer(t)) )
+})
+
+png("thread_performance.png", width=1200, height=1000, pointsize=20)
+par(mfrow=c(2,2))
+par(cex.lab=1.25)
+t.no <- 1:ncol(mp.performance)
+plot( t.no, mp.performance['elapsed',], type='b', xlab='Threads', ylab='Time elapsed')
+plot( t.no, length(fastq.seq2) / mp.performance['elapsed',], type='b', xlab='Threads', ylab='Seqs / second' )
+##
+## normalised by 1 thread
+p.speed <- 1 / (mp.performance['elapsed',] / mp.performance['elapsed',1])
+plot( t.no, p.speed, xlab='Threads', ylab='Normalised speed', type='b' )
+abline(0,1, col='red')
+##
+plot( t.no, p.speed / t.no, type='b', xlab='Threads', ylab='Performance / thread', ylim=c(0,1) )
+dev.off()
+
+## confirm that we get the same results:
 par(mfrow=c(2,1))
 for(i in 1:length(fastq.seq)){
     plot( 1:nrow(tmp2[[i]]), tmp2[[i]][,1], ylim=range(tmp2[[i]]), xaxs='i', type='l')

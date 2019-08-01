@@ -5,7 +5,7 @@
 #include "smith_waterman.h"
 
 static const int sw_matrix_size = 30 * 10000;
-static const int MAX_THREADS = 16;
+static const int MAX_THREADS = 32;
 
 // Creates smith waterman score and pointer matrices
 // for two sequences. Does not extract an alignment.
@@ -155,7 +155,7 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
   int n_short = length(seq_short_r);
   int n_long = length(seq_long_r);
   int thread_n = INTEGER(thread_n_r)[0];
-  if(thread_n < 1 || thread_n >= MAX_THREADS)
+  if(thread_n < 1 || thread_n > MAX_THREADS)
     error("bad thread number %d", thread_n);
 
   // Let us look at the stack size
