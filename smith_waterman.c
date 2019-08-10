@@ -35,7 +35,10 @@ void smith_waterman_id(const char *seq_1, const char *seq_2, size_t l1, size_t l
   int score_set[3] = {0, 0, 0};
   // the offset and the value
   int max_set[2] = {0, 0};
-
+  // keep a record of the position of the maximum score
+  // score, row, column
+  int max_score = {0, 0, 0};
+  
   // Weirdly, I have no difference between using row or column
   // major iteration. Strangely row major seems to work marginally
   // faster. That might change if both sequences were long;
@@ -48,6 +51,11 @@ void smith_waterman_id(const char *seq_1, const char *seq_2, size_t l1, size_t l
       which_max( score_set, max_set );
       scores[ row + nrow * column ] = max_set[1];
       pointers[ row + nrow * column] = max_set[0];
+      if(max_score[0] < max_set[1]){
+	max_score[0] = max_set[1];
+	max_score[1] = row;
+	max_score[2] = column;
+      }
     }
   }
   // and that should be enough..
