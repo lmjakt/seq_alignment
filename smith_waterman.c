@@ -37,7 +37,7 @@ void smith_waterman_id(const char *seq_1, const char *seq_2, size_t l1, size_t l
   int max_set[2] = {0, 0};
   // keep a record of the position of the maximum score
   // score, row, column
-  int max_score = {0, 0, 0};
+  int max_score[3] = {0, 0, 0};
   
   // Weirdly, I have no difference between using row or column
   // major iteration. Strangely row major seems to work marginally
@@ -96,5 +96,52 @@ void smith_waterman_cm(const char *seq_1, const char *seq_2, size_t l1, size_t l
       column_max = column_max < scores[offset] ? scores[offset] : column_max;
     }
     col_maxes[column] = column_max;
+  }
+}
+
+
+// As above, but optimised for memory usage. Rather than remember the full table we only remember
+// the last column; If nrow >> ncol
+// This means that we can scan the complet genome relatively quickly
+// Again we do not allocate memory here, but leave that to the calling function
+// In order for the calling function to be able to optimise memory allocation..
+// Note that it would be relatively easy to modify this function to handle affine gap penalties
+// The idea of this function is to use it to scan for tandem repeats. If we give a tandem
+// repeat sequence as the short sequence where they occur should give rise to a periodic
+// maximum signal, with a periodicity of the length of the tandem repeat. This can then
+// be used combined with a running sum to find regions rich for such repeats in a manner
+// similar to how you can find CpG repeats, but using scores rather than simple occurences.
+//
+// If one sets up the running sum, such that scores below some threshold count as negative
+// then one should be able to distinguish from repeats of parts of the repeat sequence.
+// That could be used by following up this with a peak detection, rather than by
+// providing the full set of scores to R (4 * chr_length) bytes (for L. piscatorius
+// around 100 megabytes per chromosome; not so bad.. )
+//
+// scores should be a pointer to 2 * (l1 + 1) integers
+// seq_1 should be short, and seq_2 should be long
+void smith_waterman_cm_mo(const char *seq_1, const char *seq_2, size_t l1, size_t l2,
+			  int match, int mis_match, int gap,
+			  int *scores, int *col_maxes)
+{
+  size_t nrow = l1 + 1;
+  size_t ncol = l2 + 1;
+  int *cols[2] = { scores, scores + nrow };
+
+  memset((void*)col_maxes, 0, sizeof(int) * ncol);
+  memset((void*)scores, 0, sizeof(int) * 2 * nrow);
+  
+  for(size_t i=1; i < ncol; ++i){
+    // current and previous columns
+    int* ccol = cols[ i % 2 ];
+    int* pcol = cols[ (i - 1) % 2 ];
+    memset((void*)pcol, 0, sizeof(int) * nrow);
+    for(size_t row=1; row < nrow; ++row){
+      ccol[row] = ccol[row] < ccol[row-1] - gap ? ccol[row-1] - gap : ccol[row];
+      ccol[row] = ccol[row] < pcol[row] - gap ? pcol[row] - gap : ccol[row];
+      int match_p = seq_1[nrow-1] == seq_2[ncol-1] ? match : -mis_match;
+      ccol[row] = pcol[row-1] + match_p > ccol[row] ? pcol[row-1] + match_p : ccol[row];
+      col_maxes[i] = col_maxes[i] < ccol[row] ? ccol[row] : col_maxes[i];
+    }
   }
 }

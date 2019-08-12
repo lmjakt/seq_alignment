@@ -18,5 +18,9 @@ void smith_waterman_cm(const char *seq_1, const char *seq_2, size_t l1, size_t l
 		       int match, int mis_match, int gap,
 		       int *scores, int *col_maxes);
 
+void smith_waterman_cm_mo(const char *seq_1, const char *seq_2, size_t l1, size_t l2,
+			  int match, int mis_match, int gap,
+			  int *scores, int *col_maxes);
+
 
 #endif
