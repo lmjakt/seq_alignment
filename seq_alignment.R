@@ -57,3 +57,20 @@ int.peaks  <- function(values, min.value, min.distance){
     .Call("get_peaks", as.integer(values), as.integer(min.value),
           as.integer(min.distance) )
 }
+
+
+## read a fasta file into a reasonable R data structure
+read.fasta  <- function(fname, ...){
+    lines  <- readLines(fname, ...)
+    id.i  <- grep("^>", lines)
+    ids  <- sub( "^>", "", lines[id.i] )
+    seq.beg  <- id.i + 1
+    seq.end  <- c(id.i[-1] - 1, length(lines))
+    seqs  <- sapply(1:length(seq.beg), function(i){
+        paste(lines[seq.beg[i]:seq.end[i]], collapse="")
+    })
+    names(seqs)  <- ids
+    rm(lines)
+    gc()
+    seqs
+}
