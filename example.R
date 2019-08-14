@@ -181,10 +181,14 @@ for(i in 1:length(fastq.seq)){
 }
 
 ## Try to read a whole genome into memory...
-## system.time(lpisc  <- read.fasta("bf2_chromosomelevel.fasta"))
+system.time(lpisc  <- read.fasta("bf2_chromosomelevel.fasta"))
 ##    user  system elapsed 
 ##  27.227   0.208  27.437 
 
 ## that seems to work alright, although it is rather an ineffcient way
 ## of reading a fasta file into memory.
 
+## lets try to use our new memory optimised function for column
+## maxes
+system.time( tmp2.2  <- .Call("smith_water_col_max_mo", p.seqs, fastq.seq,
+                              as.integer(c(4,4,5)) ) )

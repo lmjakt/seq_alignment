@@ -249,6 +249,54 @@ SEXP smith_water_col_max_mt(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r,
   return( ret_data );
 }
 
+// designed for handling very long sequences;
+// allocates the minimal amount of memory required
+SEXP smith_water_col_max_mo(SEXP seq_short_r, SEXP seq_long_r, SEXP penalties_r){
+  if( TYPEOF(seq_short_r) != STRSXP || TYPEOF(seq_long_r) != STRSXP )
+    error("The first two arguments should both be character vectors");
+  if( TYPEOF(penalties_r) != INTSXP )
+    error("second argument should be an integer vector");
+  if( length(seq_short_r) < 1 || length(seq_long_r) < 1 || length(penalties_r) != 3)
+    error("Arguments should have lengths: l1 > 0, l2 > 0, l3 == 3");
+
+  int *penalties = INTEGER(penalties_r);
+  int n_short = length(seq_short_r);
+  int n_long = length(seq_long_r);
+  
+  // for each long sequence we wish to determine column maxes. That means
+  // we need to return a list of n_long items, containing matrices with
+  // n_short columns and nrow equal to the long sequence... 
+  SEXP ret_data = PROTECT(allocVector(VECSXP, n_long));
+
+  // the score_buffer will be reallocated for each short sequence
+  // and needs to be: (1 + nchar(short)) * 2
+  int *score_buffer = 0;
+
+  // Then iterate through the long sequences:
+  for(int i=0; i < n_long; ++i){
+    SEXP seq_l_r = STRING_ELT(seq_long_r, i);
+    int l_length = length(seq_l_r);
+    const char *seq_l = CHAR(seq_l_r);
+    if(l_length < 1)
+      continue;
+    SET_VECTOR_ELT(ret_data, i, allocMatrix(INTSXP, l_length + 1, n_short));
+    int *c_max = INTEGER(VECTOR_ELT(ret_data, i));
+    for(int j=0; j < n_short; ++j){
+      SEXP seq_s_r = STRING_ELT(seq_short_r, j);
+      int s_length = length(seq_s_r);
+      const char *seq_s = CHAR(seq_s_r);
+      // call realloc to make sure that we have sufficient memory for the
+      // buffer
+      score_buffer = realloc((void*)score_buffer, sizeof(int) * (1 + s_length) * 2);
+      smith_waterman_cm_mo(seq_s, seq_l, s_length, l_length,
+			   penalties[0], penalties[1], penalties[2],
+			   score_buffer, c_max + (l_length + 1) * j);
+    }
+  }
+  free( score_buffer );
+  UNPROTECT(1);
+  return(ret_data);
+}
 
 // A function to return some peaks. This is simple enough.
 // only handles integers
